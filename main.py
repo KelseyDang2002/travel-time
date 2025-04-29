@@ -2,7 +2,7 @@ import openrouteservice as ors
 import time
 import requests
 
-API_KEY = "5b3ce3597851110001cf6248e897f958928948808bab68f7fef350b5"
+API_KEY = ""
 
 client = ors.Client(key=API_KEY)
 
