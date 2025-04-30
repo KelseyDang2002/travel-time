@@ -1,57 +1,59 @@
-import openrouteservice as ors
 import time
 import requests
+from datetime import datetime as dt
+import sys
+import os
 
-API_KEY = ""
-
-client = ors.Client(key=API_KEY)
-
-def get_eta(origin, destination):
-
-    route = client.directions(
-        coordinates=[origin, destination],
-        profile='driving-car',
-        preference='fastest',
-        format='geojson'
+GOOGLE_API_KEY = "KEY"
+PATH = os.path.dirname(os.path.abspath(sys.argv[0]))
+    
+def get_eta_google(origin, destination):
+    origin_str = f"{origin[0]},{origin[1]}"
+    destination_str = f"{destination[0]},{destination[1]}"
+    departure = int(time.time())
+    
+    url = (
+        f"https://maps.googleapis.com/maps/api/directions/json?"
+        f"origin={origin_str}&destination={destination_str}"
+        f"&departure_time={departure}&traffic_model=best_guess&key={GOOGLE_API_KEY}"
     )
     
-    time.sleep(1)
+    response = requests.get(url).json()
     
-    eta_seconds = route['features'][0]['properties']['summary']['duration']
-    eta_minutes = int(eta_seconds // 60)
-    print(f"\n{origin} -> {destination}\nETA: {eta_minutes} minutes")
+    if response['status'] != 'OK':
+        print("Error:", response['status'], response.get('error_message'))
+        return None
+    
+    duration = response['routes'][0]['legs'][0]['duration_in_traffic']['value']
+    eta_minutes = duration // 60
+    print(f"{origin} -> {destination} ETA: {eta_minutes} minutes")
     return eta_minutes
-    
-def snap_to_road(coord):
-    body = {
-        "locations": coord,
-        "radius": 0
-    }
-    
-    headers = {
-        'Accept': 'application/json, application/geo+json, application/gpx+xml, img/png; charset=utf-8',
-        'Authorization': API_KEY,
-        'Content-Type': 'application/json; charset=utf-8'
-    }
-    
-    call = requests.post('https://api.openrouteservice.org/v2/snap/driving-car/geojson', json=body, headers=headers)
-
-    print(call.status_code, call.reason)
-    print(call.text)
 
 def save_data(data1, data2):
-    curr_datetime = None
-    filename = '/{}'
+    curr_date = dt.now().date()
+    curr_time = dt.now().strftime("%H:%M:%S")
+    print(curr_date, curr_time)
+    filename = f"{PATH}/{curr_date}_WA_travel_time.txt"
     with open(filename, 'a') as file:
-        file.write(f"{data1}, {data2}\n")
+        file.write(f"{curr_date},{curr_time},{data1},{data2}\n")
 
 if __name__ == "__main__":
-    site206 = [-122.46156368136903, 47.213503748392256]
-    site207 = [-122.46249833281806, 47.21446807353094]
-    site208 = [-122.27481709431358, 47.30403424214919]
-    # site206_ = snap_to_road(site206)
-    # site207_ = snap_to_road(site207)
-    # site208_ = snap_to_road(site208)
-    eta1 = get_eta(site206, site208)
-    eta2 = get_eta(site208, site207)
-    # save_data(eta1, eta2)
+    site206 = [47.21389016159856, -122.46404436544215]
+    site207 = [47.214403598850936, -122.46249035823517]
+    site208 = [47.30709075659674, -122.2721269528852]
+    eta1 = get_eta_google(site206, site208)
+    eta2 = get_eta_google(site208, site207)
+    save_data(eta1, eta2)
+    
+    # while True:
+    #     try:
+    #         # site206_ = snap_to_road(site206)
+    #         # site207_ = snap_to_road(site207)
+    #         # site208_ = snap_to_road(site208)
+    #         time.sleep(60) # 1 minute
+    #         eta1 = get_eta_google(site206, site208)
+    #         eta2 = get_eta_google(site208, site207)
+    #         save_data(eta1, eta2)
+    #     except KeyboardInterrupt:
+    #         print("\nStop program.")
+    #         sys.exit(0)
